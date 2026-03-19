@@ -6,8 +6,9 @@ import os
 # Load from environment or use default for local dev
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "sqlite:///./patient_records.db"
+    "postgresql://milind7841:milind7841@localhost/patient_records_db"
 )
+
 
 engine = create_engine(
     DATABASE_URL, 
