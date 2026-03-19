@@ -6,10 +6,13 @@ import os
 # Load from environment or use default for local dev
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg2://postgres:milind7841@localhost:5432/patient_records_db"
+    "sqlite:///./patient_records.db"
 )
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL, 
+    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+)
 print("DB ENGINE CREATED")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
