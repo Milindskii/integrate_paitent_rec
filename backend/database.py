@@ -6,8 +6,10 @@ import os
 # Load from environment or use default for local dev
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://milind7841:milind7841@localhost/patient_records_db"
+    "postgresql://postgres:milind7841@localhost:5432/patient_records_db"
 )
+
+
 
 
 engine = create_engine(
