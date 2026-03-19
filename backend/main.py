@@ -1,38 +1,27 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from database import engine
 import models
 from routes import patients, admin_routes, reports
-import traceback
 
-# Create tables
+# Create all tables on startup
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="MediSync API")
+app = FastAPI(title="MediSync API", version="1.0.0")
 
-# Configure CORS
+# ─── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],          # In production, restrict to your frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# @app.exception_handler(Exception)
-# async def global_exception_handler(request: Request, exc: Exception):
-#     print(f"GLOBAL ERROR: {str(exc)}")
-#     traceback.print_exc()
-#     return JSONResponse(
-#         status_code=500,
-#         content={"detail": str(exc), "traceback": traceback.format_exc()},
-#     )
-
-# Include routers
-app.include_router(patients.router, prefix="/api/patients", tags=["Patients"])
-app.include_router(admin_routes.router, prefix="/api", tags=["Admin"])
-app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
+# ─── Routers ───────────────────────────────────────────────────────────────────
+app.include_router(patients.router,     prefix="/api/patients",  tags=["Patients"])
+app.include_router(admin_routes.router, prefix="/api",           tags=["Admin"])
+app.include_router(reports.router,      prefix="/api/reports",   tags=["Reports"])
 
 
 @app.get("/")

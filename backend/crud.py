@@ -4,61 +4,54 @@ from sqlalchemy import func
 from datetime import date
 import models, schemas
 
-# pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ─── Patients ─────────────────────────────────────────────────────────────────
 
-# Add this function
 def get_patient_by_email(db: Session, email: str):
     return db.query(models.Patient).filter(models.Patient.email == email).first()
 
-# Update this function to use direct bcrypt
+
 def create_patient(db: Session, patient: schemas.PatientCreate):
-    # Convert to dict and hash password
     patient_data = patient.model_dump()
-    password = patient_data.pop("password", "")
-    if not password:
-        password = "placeholder_password"
-    
-    # Direct bcrypt hashing
+    password = patient_data.pop("password", "") or "placeholder_password"
+
     salt = bcrypt.gensalt()
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
-    
-    # Create patient with hashed password
-    medical_conditions = patient_data.pop("medical_conditions", None)
-    db_patient = models.Patient(**patient_data, password_hash=hashed_password, medical_conditions=medical_conditions)
-    
+    hashed_password = bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+
+    db_patient = models.Patient(**patient_data, password_hash=hashed_password)
     db.add(db_patient)
     db.commit()
     db.refresh(db_patient)
-    print("SAVED:", db_patient.name)
+    print(f"Patient created: {db_patient.name}")
     return db_patient
 
-def get_patients(db: Session, skip=0, limit=100):
+
+def get_patients(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Patient).offset(skip).limit(limit).all()
+
 
 def get_patient(db: Session, patient_id: int):
     return db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+
 
 def update_patient(db: Session, patient_id: int, patient: schemas.PatientCreate):
     db_patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     if not db_patient:
         return None
+
     patient_data = patient.model_dump()
-    
-    # Handle password separately
-    if "password" in patient_data and patient_data["password"]:
-        password = patient_data.pop("password")
-        # Set the password_hash directly on the db_patient object
-        db_patient.password_hash = pwd_context.hash(password)
-    
-    # Update other fields
+    password = patient_data.pop("password", None)
+    if password:
+        salt = bcrypt.gensalt()
+        db_patient.password_hash = bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+
     for key, value in patient_data.items():
         setattr(db_patient, key, value)
-    
+
     db.commit()
     db.refresh(db_patient)
     return db_patient
+
 
 def delete_patient(db: Session, patient_id: int):
     db_patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
@@ -68,6 +61,7 @@ def delete_patient(db: Session, patient_id: int):
     db.commit()
     return True
 
+
 def search_patients(db: Session, name: str = None, blood_group: str = None):
     query = db.query(models.Patient)
     if name:
@@ -75,6 +69,7 @@ def search_patients(db: Session, name: str = None, blood_group: str = None):
     if blood_group:
         query = query.filter(models.Patient.blood_group == blood_group)
     return query.all()
+
 
 # ─── Doctors ──────────────────────────────────────────────────────────────────
 
@@ -85,11 +80,14 @@ def create_doctor(db: Session, doctor: schemas.DoctorCreate):
     db.refresh(db_doctor)
     return db_doctor
 
+
 def get_doctors(db: Session):
     return db.query(models.Doctor).all()
 
+
 def get_doctor(db: Session, doctor_id: int):
     return db.query(models.Doctor).filter(models.Doctor.id == doctor_id).first()
+
 
 # ─── Departments ──────────────────────────────────────────────────────────────
 
@@ -100,8 +98,10 @@ def create_department(db: Session, dept: schemas.DepartmentCreate):
     db.refresh(db_dept)
     return db_dept
 
+
 def get_departments(db: Session):
     return db.query(models.Department).all()
+
 
 # ─── Appointments ─────────────────────────────────────────────────────────────
 
@@ -112,11 +112,18 @@ def create_appointment(db: Session, appt: schemas.AppointmentCreate):
     db.refresh(db_appt)
     return db_appt
 
+
 def get_appointments(db: Session):
     return db.query(models.Appointment).all()
 
+
 def get_patient_appointments(db: Session, patient_id: int):
     return db.query(models.Appointment).filter(models.Appointment.patient_id == patient_id).all()
+
+
+def get_doctor_appointments(db: Session, doctor_id: int):
+    return db.query(models.Appointment).filter(models.Appointment.doctor_id == doctor_id).all()
+
 
 def update_appointment_status(db: Session, appt_id: int, status: str):
     appt = db.query(models.Appointment).filter(models.Appointment.id == appt_id).first()
@@ -127,6 +134,7 @@ def update_appointment_status(db: Session, appt_id: int, status: str):
     db.refresh(appt)
     return appt
 
+
 # ─── Medical Records ──────────────────────────────────────────────────────────
 
 def create_medical_record(db: Session, record: schemas.MedicalRecordCreate):
@@ -136,11 +144,14 @@ def create_medical_record(db: Session, record: schemas.MedicalRecordCreate):
     db.refresh(db_record)
     return db_record
 
+
 def get_patient_medical_records(db: Session, patient_id: int):
     return db.query(models.MedicalRecord).filter(models.MedicalRecord.patient_id == patient_id).all()
 
+
 def get_medical_record(db: Session, record_id: int):
     return db.query(models.MedicalRecord).filter(models.MedicalRecord.id == record_id).first()
+
 
 # ─── Prescriptions ────────────────────────────────────────────────────────────
 
@@ -151,8 +162,10 @@ def create_prescription(db: Session, rx: schemas.PrescriptionCreate):
     db.refresh(db_rx)
     return db_rx
 
+
 def get_patient_prescriptions(db: Session, patient_id: int):
     return db.query(models.Prescription).filter(models.Prescription.patient_id == patient_id).all()
+
 
 # ─── Lab Tests ────────────────────────────────────────────────────────────────
 
@@ -163,8 +176,10 @@ def create_lab_test(db: Session, lab: schemas.LabTestCreate):
     db.refresh(db_lab)
     return db_lab
 
+
 def get_patient_lab_tests(db: Session, patient_id: int):
     return db.query(models.LabTest).filter(models.LabTest.patient_id == patient_id).all()
+
 
 def update_lab_result(db: Session, test_id: int, result: str, status: str):
     test = db.query(models.LabTest).filter(models.LabTest.id == test_id).first()
@@ -176,6 +191,7 @@ def update_lab_result(db: Session, test_id: int, result: str, status: str):
     db.refresh(test)
     return test
 
+
 # ─── Billing ──────────────────────────────────────────────────────────────────
 
 def create_bill(db: Session, bill: schemas.BillCreate):
@@ -185,8 +201,10 @@ def create_bill(db: Session, bill: schemas.BillCreate):
     db.refresh(db_bill)
     return db_bill
 
+
 def get_patient_bills(db: Session, patient_id: int):
     return db.query(models.Bill).filter(models.Bill.patient_id == patient_id).all()
+
 
 def pay_bill(db: Session, bill_id: int):
     bill = db.query(models.Bill).filter(models.Bill.id == bill_id).first()
@@ -198,7 +216,29 @@ def pay_bill(db: Session, bill_id: int):
     db.refresh(bill)
     return bill
 
+
 # ─── Dashboard Stats ──────────────────────────────────────────────────────────
+
+def get_dashboard_stats(db: Session):
+    total_patients = db.query(func.count(models.Patient.id)).scalar()
+    total_doctors = db.query(func.count(models.Doctor.id)).scalar()
+    total_appointments = db.query(func.count(models.Appointment.id)).scalar()
+    scheduled_appointments = (
+        db.query(func.count(models.Appointment.id))
+        .filter(models.Appointment.status == models.AppointmentStatusEnum.scheduled)
+        .scalar()
+    )
+    total_records = db.query(func.count(models.MedicalRecord.id)).scalar()
+    pending_bills = (
+        db.query(func.count(models.Bill.id))
+        .filter(models.Bill.status == models.BillStatusEnum.pending)
+        .scalar()
+    )
+    pending_labs = (
+        db.query(func.count(models.LabTest.id))
+        .filter(models.LabTest.status == models.LabStatusEnum.pending)
+        .scalar()
+    )
 
     return {
         "total_patients": total_patients,
@@ -210,27 +250,23 @@ def pay_bill(db: Session, bill_id: int):
         "pending_lab_tests": pending_labs,
     }
 
-# ─── Aggregated Reports ───────────────────────────────────────────────────────
+
+# ─── Aggregated Patient Report ────────────────────────────────────────────────
 
 def get_patient_report(db: Session, patient_id: int):
     patient = get_patient(db, patient_id)
     if not patient:
         return None
-    
-    appointments = get_patient_appointments(db, patient_id)
-    medical_records = get_patient_medical_records(db, patient_id)
-    prescriptions = get_patient_prescriptions(db, patient_id)
-    lab_tests = get_patient_lab_tests(db, patient_id)
-    bills = get_patient_bills(db, patient_id)
-    
+
     return {
         "patient": patient,
-        "appointments": appointments,
-        "medical_records": medical_records,
-        "prescriptions": prescriptions,
-        "lab_tests": lab_tests,
-        "bills": bills
+        "appointments": get_patient_appointments(db, patient_id),
+        "medical_records": get_patient_medical_records(db, patient_id),
+        "prescriptions": get_patient_prescriptions(db, patient_id),
+        "lab_tests": get_patient_lab_tests(db, patient_id),
+        "bills": get_patient_bills(db, patient_id),
     }
+
 
 # ─── Authentication ───────────────────────────────────────────────────────────
 
@@ -241,15 +277,17 @@ def authenticate_user(db: Session, email: str, password: str, role: str):
         user = db.query(models.Doctor).filter(models.Doctor.email == email).first()
     else:
         return None
-        
+
     if not user:
         return None
-        
-    # Verify password hash
+
     if not hasattr(user, "password_hash") or not user.password_hash:
         return None
-        
-    if bcrypt.checkpw(password.encode('utf-8'), user.password_hash.encode('utf-8')):
-        return user
-        
+
+    try:
+        if bcrypt.checkpw(password.encode("utf-8"), user.password_hash.encode("utf-8")):
+            return user
+    except Exception:
+        pass
+
     return None

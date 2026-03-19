@@ -1,50 +1,29 @@
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import List, Optional
-import schemas, crud
+
+import schemas
+import crud
 from database import get_db
 
 router = APIRouter()
 
-# ─────────────────────────────────────────────
-# PATIENTS
-# ─────────────────────────────────────────────
 
-@router.post("/patients/", response_model=schemas.Patient, status_code=201, tags=["Patients"])
-def create_patient(patient: schemas.PatientCreate, db: Session = Depends(get_db)):
-    return crud.create_patient(db, patient)
-
-@router.get("/patients/", response_model=List[schemas.Patient], tags=["Patients"])
-def list_patients(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_patients(db, skip, limit)
-
-@router.put("/patients/{patient_id}", response_model=schemas.Patient, tags=["Patients"])
-def update_patient(patient_id: int, patient: schemas.PatientCreate, db: Session = Depends(get_db)):
-    updated = crud.update_patient(db, patient_id, patient)
-    if not updated:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    return updated
-
-@router.delete("/patients/{patient_id}", tags=["Patients"])
-def delete_patient(patient_id: int, db: Session = Depends(get_db)):
-    if not crud.delete_patient(db, patient_id):
-        raise HTTPException(status_code=404, detail="Patient not found")
-    return {"message": "Patient deleted successfully"}
-
-@router.get("/patients/search/", response_model=List[schemas.Patient], tags=["Patients"])
-def search_patients(name: Optional[str] = None, blood_group: Optional[str] = None, db: Session = Depends(get_db)):
-    return crud.search_patients(db, name, blood_group)
-
-# ─────────────────────────────────────────────
-# DOCTORS
-# ─────────────────────────────────────────────
+# ─── Doctors ─────────────────────────────────────────────────────────────────
 
 @router.post("/doctors/", response_model=schemas.Doctor, status_code=201, tags=["Doctors"])
 def create_doctor(doctor: schemas.DoctorCreate, db: Session = Depends(get_db)):
+    """Add a new doctor. POST /api/doctors/"""
     return crud.create_doctor(db, doctor)
 
 @router.get("/doctors/", response_model=List[schemas.Doctor], tags=["Doctors"])
 def list_doctors(db: Session = Depends(get_db)):
+    """Get all doctors. GET /api/doctors/"""
     return crud.get_doctors(db)
 
 @router.get("/doctors/{doctor_id}", response_model=schemas.Doctor, tags=["Doctors"])
@@ -54,9 +33,8 @@ def get_doctor(doctor_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Doctor not found")
     return doctor
 
-# ─────────────────────────────────────────────
-# DEPARTMENTS
-# ─────────────────────────────────────────────
+
+# ─── Departments ─────────────────────────────────────────────────────────────
 
 @router.post("/departments/", response_model=schemas.Department, status_code=201, tags=["Departments"])
 def create_department(dept: schemas.DepartmentCreate, db: Session = Depends(get_db)):
@@ -66,9 +44,8 @@ def create_department(dept: schemas.DepartmentCreate, db: Session = Depends(get_
 def list_departments(db: Session = Depends(get_db)):
     return crud.get_departments(db)
 
-# ─────────────────────────────────────────────
-# APPOINTMENTS
-# ─────────────────────────────────────────────
+
+# ─── Appointments ─────────────────────────────────────────────────────────────
 
 @router.post("/appointments/", response_model=schemas.Appointment, status_code=201, tags=["Appointments"])
 def create_appointment(appt: schemas.AppointmentCreate, db: Session = Depends(get_db)):
@@ -76,7 +53,13 @@ def create_appointment(appt: schemas.AppointmentCreate, db: Session = Depends(ge
 
 @router.get("/appointments/", response_model=List[schemas.Appointment], tags=["Appointments"])
 def list_appointments(db: Session = Depends(get_db)):
+    """Get all appointments. GET /api/appointments/"""
     return crud.get_appointments(db)
+
+@router.get("/appointments/doctor/{doctor_id}", response_model=List[schemas.Appointment], tags=["Appointments"])
+def get_doctor_appointments(doctor_id: int, db: Session = Depends(get_db)):
+    """Get appointments for a specific doctor. GET /api/appointments/doctor/{doctorId}"""
+    return crud.get_doctor_appointments(db, doctor_id)
 
 @router.put("/appointments/{appt_id}/status", response_model=schemas.Appointment, tags=["Appointments"])
 def update_appointment_status(appt_id: int, status_update: schemas.AppointmentStatusUpdate, db: Session = Depends(get_db)):
@@ -85,9 +68,8 @@ def update_appointment_status(appt_id: int, status_update: schemas.AppointmentSt
         raise HTTPException(status_code=404, detail="Appointment not found")
     return updated
 
-# ─────────────────────────────────────────────
-# MEDICAL RECORDS (Treatment History)
-# ─────────────────────────────────────────────
+
+# ─── Medical Records ──────────────────────────────────────────────────────────
 
 @router.post("/medical-records/", response_model=schemas.MedicalRecord, status_code=201, tags=["Medical Records"])
 def create_medical_record(record: schemas.MedicalRecordCreate, db: Session = Depends(get_db)):
@@ -100,17 +82,15 @@ def get_medical_record(record_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Record not found")
     return record
 
-# ─────────────────────────────────────────────
-# PRESCRIPTIONS
-# ─────────────────────────────────────────────
+
+# ─── Prescriptions ───────────────────────────────────────────────────────────
 
 @router.post("/prescriptions/", response_model=schemas.Prescription, status_code=201, tags=["Prescriptions"])
 def create_prescription(rx: schemas.PrescriptionCreate, db: Session = Depends(get_db)):
     return crud.create_prescription(db, rx)
 
-# ─────────────────────────────────────────────
-# LAB TESTS
-# ─────────────────────────────────────────────
+
+# ─── Lab Tests ───────────────────────────────────────────────────────────────
 
 @router.post("/lab-tests/", response_model=schemas.LabTest, status_code=201, tags=["Lab Tests"])
 def create_lab_test(lab: schemas.LabTestCreate, db: Session = Depends(get_db)):
@@ -123,9 +103,8 @@ def update_lab_result(test_id: int, result: schemas.LabResultUpdate, db: Session
         raise HTTPException(status_code=404, detail="Test not found")
     return updated
 
-# ─────────────────────────────────────────────
-# BILLING
-# ─────────────────────────────────────────────
+
+# ─── Billing ─────────────────────────────────────────────────────────────────
 
 @router.post("/billing/", response_model=schemas.Bill, status_code=201, tags=["Billing"])
 def create_bill(bill: schemas.BillCreate, db: Session = Depends(get_db)):
@@ -138,10 +117,10 @@ def pay_bill(bill_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Bill not found")
     return updated
 
-# ─────────────────────────────────────────────
-# DASHBOARD / REPORTS
-# ─────────────────────────────────────────────
+
+# ─── Dashboard ───────────────────────────────────────────────────────────────
 
 @router.get("/dashboard/stats", tags=["Dashboard"])
 def get_dashboard_stats(db: Session = Depends(get_db)):
+    """Dashboard statistics. GET /api/dashboard/stats"""
     return crud.get_dashboard_stats(db)

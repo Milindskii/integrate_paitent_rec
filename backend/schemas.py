@@ -1,7 +1,10 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, datetime
 from enum import Enum
+
+
+# ─── Enums ────────────────────────────────────────────────────────────────────
 
 class GenderEnum(str, Enum):
     male = "male"
@@ -21,6 +24,7 @@ class LabStatusEnum(str, Enum):
     pending = "pending"
     completed = "completed"
 
+
 # ─── Department ───────────────────────────────────────────────────────────────
 
 class DepartmentCreate(BaseModel):
@@ -32,6 +36,7 @@ class Department(DepartmentCreate):
     created_at: datetime
     class Config:
         from_attributes = True
+
 
 # ─── Doctor ───────────────────────────────────────────────────────────────────
 
@@ -48,9 +53,9 @@ class Doctor(DoctorCreate):
     class Config:
         from_attributes = True
 
+
 # ─── Patient ──────────────────────────────────────────────────────────────────
 
-# 🔴 FIXED: Added password field
 class PatientCreate(BaseModel):
     name: str
     date_of_birth: date
@@ -62,9 +67,8 @@ class PatientCreate(BaseModel):
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
     allergies: Optional[str] = None
-    password: str  # ← ADD THIS LINE - Password is required for registration
+    password: str   # Required for registration; will be hashed before storing
 
-# Patient response model should NOT include password
 class Patient(BaseModel):
     id: int
     name: str
@@ -79,11 +83,8 @@ class Patient(BaseModel):
     allergies: Optional[str] = None
     medical_conditions: Optional[str] = None
     created_at: datetime
-    
-    model_config = {
-        "from_attributes": True
-    }
 
+    model_config = {"from_attributes": True}
 
 
 # ─── Appointment ──────────────────────────────────────────────────────────────
@@ -106,6 +107,7 @@ class Appointment(AppointmentCreate):
     class Config:
         from_attributes = True
 
+
 # ─── Medical Record ───────────────────────────────────────────────────────────
 
 class MedicalRecordCreate(BaseModel):
@@ -124,6 +126,7 @@ class MedicalRecord(MedicalRecordCreate):
     class Config:
         from_attributes = True
 
+
 # ─── Prescription ─────────────────────────────────────────────────────────────
 
 class PrescriptionCreate(BaseModel):
@@ -141,6 +144,7 @@ class Prescription(PrescriptionCreate):
     created_at: datetime
     class Config:
         from_attributes = True
+
 
 # ─── Lab Test ─────────────────────────────────────────────────────────────────
 
@@ -163,6 +167,7 @@ class LabTest(LabTestCreate):
     class Config:
         from_attributes = True
 
+
 # ─── Bill ─────────────────────────────────────────────────────────────────────
 
 class BillCreate(BaseModel):
@@ -179,12 +184,13 @@ class Bill(BillCreate):
     class Config:
         from_attributes = True
 
-# ─── Authentication ──────────────────────────────────────────────────────────
+
+# ─── Authentication ────────────────────────────────────────────────────────────
 
 class LoginData(BaseModel):
     email: str
     password: str
-    role: str # 'patient' or 'doctor'
+    role: str   # "patient" or "doctor"
 
 class Token(BaseModel):
     access_token: str
@@ -192,8 +198,23 @@ class Token(BaseModel):
     user_id: int
     user_name: str
     role: str
+    # Frontend expects a nested "user" object as well
+    user: dict
 
-# ─── Reports ──────────────────────────────────────────────────────────────────
+
+# ─── Dashboard ────────────────────────────────────────────────────────────────
+
+class DashboardStats(BaseModel):
+    total_patients: int
+    total_doctors: int
+    total_appointments: int
+    scheduled_appointments: int
+    total_medical_records: int
+    pending_bills: int
+    pending_lab_tests: int
+
+
+# ─── Patient Full Report ──────────────────────────────────────────────────────
 
 class PatientReport(BaseModel):
     patient: Patient
@@ -203,6 +224,4 @@ class PatientReport(BaseModel):
     lab_tests: List[LabTest] = []
     bills: List[Bill] = []
 
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = {"from_attributes": True}
