@@ -46,12 +46,33 @@ class DoctorCreate(BaseModel):
     email: str
     phone: Optional[str] = None
     department_id: Optional[int] = None
+    password: Optional[str] = None   # Optional — set a temp password when admin adds doctor
 
-class Doctor(DoctorCreate):
+class DoctorUpdate(BaseModel):
+    name: Optional[str] = None
+    specialization: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    department_id: Optional[int] = None
+    password: Optional[str] = None
+
+class Doctor(BaseModel):
     id: int
+    name: str
+    specialization: str
+    email: str
+    phone: Optional[str] = None
+    department_id: Optional[int] = None
+    is_active: bool = True
     created_at: datetime
     class Config:
         from_attributes = True
+
+class DoctorStats(BaseModel):
+    total_patients: int
+    total_appointments: int
+    scheduled_today: int
+    completed_today: int
 
 
 # ─── Patient ──────────────────────────────────────────────────────────────────
@@ -67,7 +88,21 @@ class PatientCreate(BaseModel):
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
     allergies: Optional[str] = None
-    password: str   # Required for registration; will be hashed before storing
+    password: str
+
+class PatientUpdate(BaseModel):
+    name: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    gender: Optional[GenderEnum] = None
+    blood_group: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    allergies: Optional[str] = None
+    medical_conditions: Optional[str] = None
+    password: Optional[str] = None
 
 class Patient(BaseModel):
     id: int
@@ -82,8 +117,8 @@ class Patient(BaseModel):
     emergency_contact_phone: Optional[str] = None
     allergies: Optional[str] = None
     medical_conditions: Optional[str] = None
+    is_active: bool = True
     created_at: datetime
-
     model_config = {"from_attributes": True}
 
 
@@ -97,8 +132,16 @@ class AppointmentCreate(BaseModel):
     reason: Optional[str] = None
     notes: Optional[str] = None
 
+class AppointmentUpdate(BaseModel):
+    appointment_date: Optional[date] = None
+    appointment_time: Optional[str] = None
+    reason: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[AppointmentStatusEnum] = None
+
 class AppointmentStatusUpdate(BaseModel):
     status: AppointmentStatusEnum
+    notes: Optional[str] = None
 
 class Appointment(AppointmentCreate):
     id: int
@@ -187,19 +230,36 @@ class Bill(BillCreate):
 
 # ─── Authentication ────────────────────────────────────────────────────────────
 
+class PatientLogin(BaseModel):
+    email: str
+    password: str
+
+class DoctorLogin(BaseModel):
+    email: str
+    password: str
+
+class AdminLogin(BaseModel):
+    username: str
+    password: str
+
+# Legacy: keep for backward compat
 class LoginData(BaseModel):
     email: str
     password: str
-    role: str   # "patient" or "doctor"
+    role: str
+
+class TokenUser(BaseModel):
+    id: int
+    name: str
+    email: Optional[str] = None
+    role: str
+    specialization: Optional[str] = None
+    department_id: Optional[int] = None
 
 class Token(BaseModel):
     access_token: str
-    token_type: str
-    user_id: int
-    user_name: str
-    role: str
-    # Frontend expects a nested "user" object as well
-    user: dict
+    token_type: str = "bearer"
+    user: TokenUser
 
 
 # ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -223,5 +283,4 @@ class PatientReport(BaseModel):
     prescriptions: List[Prescription] = []
     lab_tests: List[LabTest] = []
     bills: List[Bill] = []
-
     model_config = {"from_attributes": True}

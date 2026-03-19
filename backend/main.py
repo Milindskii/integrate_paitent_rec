@@ -2,32 +2,33 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine
 import models
-from routes import patients, admin_routes, reports
+from routes import patients, doctors, admin, admin_routes, reports, appointments
 
-# Create all tables on startup
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="MediSync API", version="1.0.0")
+app = FastAPI(title="MediSync API", version="2.0.0")
 
-# ─── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # In production, restrict to your frontend URL
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ─── Routers ───────────────────────────────────────────────────────────────────
-app.include_router(patients.router,     prefix="/api/patients",  tags=["Patients"])
-app.include_router(admin_routes.router, prefix="/api",           tags=["Admin"])
-app.include_router(reports.router,      prefix="/api/reports",   tags=["Reports"])
+# ─── Routers ──────────────────────────────────────────────────────────────────
+app.include_router(patients.router,      prefix="/api/patients",      tags=["Patients"])
+app.include_router(doctors.router,       prefix="/api/doctors",       tags=["Doctors"])
+app.include_router(admin.router,         prefix="/api/admin",         tags=["Admin"])
+app.include_router(appointments.router,  prefix="/api/appointments",  tags=["Appointments"])
+app.include_router(reports.router,       prefix="/api/reports",       tags=["Reports"])
+app.include_router(admin_routes.router,  prefix="/api",               tags=["Admin Routes"])
 
 
 @app.get("/")
 def root():
-    return {"message": "MediSync API is running"}
+    return {"message": "MediSync API v2.0 is running"}
 
 @app.get("/health")
-def health_check():
+def health():
     return {"status": "healthy"}

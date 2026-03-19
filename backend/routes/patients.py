@@ -1,89 +1,96 @@
-import sys
-import os
-
-# Ensure parent backend directory is on the path for sibling imports
+import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import List, Optional
-
-import schemas
-import crud
+import schemas, crud
 from database import get_db
+from auth import create_access_token, get_current_user, require_admin
 
 router = APIRouter()
 
 
-# ─── Patient Registration ────────────────────────────────────────────────────
+# ─── Patient Registration ─────────────────────────────────────────────────────
 
 @router.post("/register", response_model=schemas.Patient, status_code=201)
-async def register_patient(patient: schemas.PatientCreate, db: Session = Depends(get_db)):
-    """Register a new patient. POST /api/patients/register"""
-    try:
-        if patient.email:
-            existing = crud.get_patient_by_email(db, patient.email)
-            if existing:
-                raise HTTPException(status_code=400, detail="Email already registered")
-        return crud.create_patient(db=db, patient=patient)
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+def register_patient(patient: schemas.PatientCreate, db: Session = Depends(get_db)):
+    if patient.email:
+        if crud.get_patient_by_email(db, patient.email):
+            raise HTTPException(status_code=400, detail="Email already registered")
+    return crud.create_patient(db, patient)
 
 
-# ─── Patient Login ───────────────────────────────────────────────────────────
+# ─── Patient Login ────────────────────────────────────────────────────────────
 
 @router.post("/auth/login", response_model=schemas.Token)
-def login(login_data: schemas.LoginData, db: Session = Depends(get_db)):
-    """Patient (or doctor) login. POST /api/patients/auth/login"""
-    user = crud.authenticate_user(db, login_data.email, login_data.password, login_data.role)
-    if not user:
+def patient_login(login: schemas.PatientLogin, db: Session = Depends(get_db)):
+    patient = crud.authenticate_patient(db, login.email, login.password)
+    if not patient:
         raise HTTPException(status_code=401, detail="Invalid email or password")
-
-    return {
-        "access_token": f"session_{user.id}_{login_data.role}",
-        "token_type": "bearer",
-        "user_id": user.id,
-        "user_name": user.name,
-        "role": login_data.role,
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "role": login_data.role,
-        },
-    }
+    token = create_access_token({"sub": str(patient.id), "role": "patient", "name": patient.name})
+    return schemas.Token(
+        access_token=token,
+        user=schemas.TokenUser(id=patient.id, name=patient.name, email=patient.email, role="patient")
+    )
 
 
-# ─── Get All Patients ────────────────────────────────────────────────────────
+# ─── List All Patients (admin) ────────────────────────────────────────────────
 
 @router.get("/", response_model=List[schemas.Patient])
-def list_patients(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """List all patients. GET /api/patients/"""
+def list_patients(skip: int = 0, limit: int = 200, db: Session = Depends(get_db)):
     return crud.get_patients(db, skip, limit)
 
 
-# ─── Search Patients ─────────────────────────────────────────────────────────
+# ─── Search Patients ──────────────────────────────────────────────────────────
 
 @router.get("/search/", response_model=List[schemas.Patient])
-def search_patients(
-    name: Optional[str] = None,
-    blood_group: Optional[str] = None,
-    db: Session = Depends(get_db),
-):
+def search_patients(name: Optional[str] = None, blood_group: Optional[str] = None,
+                    db: Session = Depends(get_db)):
     return crud.search_patients(db, name, blood_group)
 
 
-# ─── Get Single Patient ──────────────────────────────────────────────────────
-# NOTE: wildcard route must come AFTER all fixed-path routes above
+# ─── Get / Update / Delete Single Patient ────────────────────────────────────
 
 @router.get("/{patient_id}", response_model=schemas.Patient)
 def get_patient(patient_id: int, db: Session = Depends(get_db)):
-    """Get a single patient by ID. GET /api/patients/{patient_id}"""
-    patient = crud.get_patient(db, patient_id)
-    if not patient:
+    p = crud.get_patient(db, patient_id)
+    if not p:
         raise HTTPException(status_code=404, detail="Patient not found")
-    return patient
+    return p
+
+@router.put("/{patient_id}", response_model=schemas.Patient)
+def update_patient(patient_id: int, data: schemas.PatientUpdate, db: Session = Depends(get_db)):
+    p = crud.update_patient(db, patient_id, data)
+    if not p:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    return p
+
+@router.delete("/{patient_id}")
+def delete_patient(patient_id: int, db: Session = Depends(get_db)):
+    if not crud.deactivate_patient(db, patient_id):
+        raise HTTPException(status_code=404, detail="Patient not found")
+    return {"message": "Patient deactivated successfully"}
+
+
+# ─── Patient Sub-routes ───────────────────────────────────────────────────────
+
+@router.get("/{patient_id}/appointments", response_model=List[schemas.Appointment])
+def get_patient_appointments(patient_id: int, db: Session = Depends(get_db)):
+    return crud.get_patient_appointments(db, patient_id)
+
+@router.get("/{patient_id}/medical-records", response_model=List[schemas.MedicalRecord])
+def get_patient_records(patient_id: int, db: Session = Depends(get_db)):
+    return crud.get_patient_medical_records(db, patient_id)
+
+@router.get("/{patient_id}/prescriptions", response_model=List[schemas.Prescription])
+def get_patient_prescriptions(patient_id: int, db: Session = Depends(get_db)):
+    return crud.get_patient_prescriptions(db, patient_id)
+
+@router.get("/{patient_id}/lab-tests", response_model=List[schemas.LabTest])
+def get_patient_lab_tests(patient_id: int, db: Session = Depends(get_db)):
+    return crud.get_patient_lab_tests(db, patient_id)
+
+@router.get("/{patient_id}/bills", response_model=List[schemas.Bill])
+def get_patient_bills(patient_id: int, db: Session = Depends(get_db)):
+    return crud.get_patient_bills(db, patient_id)

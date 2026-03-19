@@ -4,23 +4,28 @@ from sqlalchemy.sql import func
 from database import Base
 import enum
 
+
 class GenderEnum(str, enum.Enum):
     male = "male"
     female = "female"
     other = "other"
+
 
 class AppointmentStatusEnum(str, enum.Enum):
     scheduled = "scheduled"
     completed = "completed"
     cancelled = "cancelled"
 
+
 class BillStatusEnum(str, enum.Enum):
     pending = "pending"
     paid = "paid"
 
+
 class LabStatusEnum(str, enum.Enum):
     pending = "pending"
     completed = "completed"
+
 
 class Department(Base):
     __tablename__ = "departments"
@@ -32,6 +37,7 @@ class Department(Base):
 
     doctors = relationship("Doctor", back_populates="department")
 
+
 class Doctor(Base):
     __tablename__ = "doctors"
 
@@ -39,13 +45,16 @@ class Doctor(Base):
     name = Column(String(150), nullable=False)
     specialization = Column(String(100), nullable=False)
     email = Column(String(150), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=True)
     phone = Column(String(20), nullable=True)
     department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     department = relationship("Department", back_populates="doctors")
     appointments = relationship("Appointment", back_populates="doctor")
     medical_records = relationship("MedicalRecord", back_populates="doctor")
+
 
 class Patient(Base):
     __tablename__ = "patients"
@@ -63,6 +72,7 @@ class Patient(Base):
     allergies = Column(Text, nullable=True)
     medical_conditions = Column(Text, nullable=True)
     password_hash = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -72,12 +82,13 @@ class Patient(Base):
     lab_tests = relationship("LabTest", back_populates="patient")
     bills = relationship("Bill", back_populates="patient")
 
+
 class Appointment(Base):
     __tablename__ = "appointments"
 
     id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
-    doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False)
+    doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=True)
     appointment_date = Column(Date, nullable=False)
     appointment_time = Column(String(10), nullable=False)
     reason = Column(Text, nullable=True)
@@ -87,6 +98,7 @@ class Appointment(Base):
 
     patient = relationship("Patient", back_populates="appointments")
     doctor = relationship("Doctor", back_populates="appointments")
+
 
 class MedicalRecord(Base):
     __tablename__ = "medical_records"
@@ -106,6 +118,7 @@ class MedicalRecord(Base):
     doctor = relationship("Doctor", back_populates="medical_records")
     prescriptions = relationship("Prescription", back_populates="medical_record")
 
+
 class Prescription(Base):
     __tablename__ = "prescriptions"
 
@@ -123,6 +136,7 @@ class Prescription(Base):
     patient = relationship("Patient", back_populates="prescriptions")
     medical_record = relationship("MedicalRecord", back_populates="prescriptions")
 
+
 class LabTest(Base):
     __tablename__ = "lab_tests"
 
@@ -137,6 +151,7 @@ class LabTest(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     patient = relationship("Patient", back_populates="lab_tests")
+
 
 class Bill(Base):
     __tablename__ = "bills"
